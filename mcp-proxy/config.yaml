@@ -5,7 +5,7 @@ image: ghcr.io/slettmayer/mcp-proxy
 description: >-
   Bridges stdio-based MCP servers to SSE/StreamableHTTP
   for Home Assistant LLM integrations.
-url: https://github.com/slettmayer/ha-app-mcp-proxy
+url: https://github.com/slettmayer/home-assistant-apps
 arch:
   - aarch64
   - amd64

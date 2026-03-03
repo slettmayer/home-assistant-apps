@@ -20,7 +20,7 @@ Documents the project structure, module boundaries, and data flow for the HA add
 The layout is framework-driven by the HA add-on specification:
 
 ```
-ha-app-mcp-proxy/
+home-assistant-apps/
 ├── repository.yaml              # HA recognizes this repo as an add-on source
 ├── .github/workflows/build.yaml # CI/CD
 └── mcp-proxy/                   # The add-on (siblings would be additional add-ons)
@@ -39,9 +39,9 @@ ha-app-mcp-proxy/
 
 **Add-on packaging (`mcp-proxy/`)** -- owns the HA manifest, build config, user docs, changelog, and translations. Produces the installable add-on artifact.
 
-**Container init (`rootfs/etc/cont-init.d/mcp-proxy-init.sh`)** -- owns first-run setup. Creates default `servers.json` if missing, validates JSON syntax, logs configured server names. Fails fast on invalid config.
+**Container init (`rootfs/etc/cont-init.d/mcp-proxy-init.sh`)** -- owns first-run setup and runtime dependency pre-fetching. Creates default `servers.json` if missing, validates JSON syntax, logs configured server names, and pre-installs npm packages globally (`npm install -g`) for any `npx`-based servers to prevent first-connection timeout. Fails fast on invalid config. uvx servers are not pre-installed (they cache on first run).
 
-**Service runtime (`rootfs/etc/services.d/mcp-proxy/run`)** -- owns the main process. Reads HA options via `bashio::config`, `exec`s `mcp-proxy` with CLI flags. The `exec` replaces the shell so s6 directly supervises the `mcp-proxy` process.
+**Service runtime (`rootfs/etc/services.d/mcp-proxy/run`)** -- owns the main process. Reads HA options via `bashio::config`, transforms values as needed (e.g., lowercase log level to uppercase), and `exec`s `mcp-proxy` with `--named-server-config /config/servers.json` and other CLI flags. The `exec` replaces the shell so s6 directly supervises the `mcp-proxy` process.
 
 **Crash handler (`rootfs/etc/services.d/mcp-proxy/finish`)** -- owns abnormal-exit response. Non-zero, non-256 exit codes trigger s6 supervision tree halt, causing HA to mark the add-on as failed.
 
@@ -87,5 +87,6 @@ container start
 
 ## Extension Guidelines
 - To add another add-on to this repository, create a sibling directory next to `mcp-proxy/` with its own `config.yaml`, `build.yaml`, `Dockerfile`, and `rootfs/`
+- Never place `servers.json` inside `rootfs/`; user config lives at `/config/servers.json` via the `addon_config:rw` mount, not inside the container image
 - To add another init script, create a new file in `cont-init.d/` with a lexicographically later name
 - To add another supervised service, create a new directory under `services.d/` with `run` and `finish` scripts

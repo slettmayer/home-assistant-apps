@@ -23,7 +23,7 @@ Industry: Smart home / AI tooling infrastructure.
 
 **MCP Server** -- a tool server conforming to the Model Context Protocol. Defined in `servers.json` by `command`, `args[]`, and optional `env{}`. Each server becomes a named SSE endpoint.
 
-**servers.json** -- the user-editable config file at `/addon-configs/mcp_proxy/servers.json`. A flat JSON object where each key is a server name and each value is a server definition. Single source of truth for active MCP servers.
+**servers.json** -- the user-editable config file at `/addon-configs/mcp_proxy/servers.json` (mapped to `/config/servers.json` inside the container). A JSON object with a top-level `mcpServers` key whose value is a flat map of server names to server definitions. Each definition has `command`, `args[]`, optional `env{}`, and optional `type` (e.g., `"stdio"`). Single source of truth for active MCP servers.
 
 **SSE Endpoint** -- HTTP endpoint per server at `http://<host>:9876/servers/<name>/sse`. This is the interface consumed by HA LLM integrations.
 
@@ -73,8 +73,8 @@ Industry: Smart home / AI tooling infrastructure.
 - Default calculator example: provides immediate feedback on first install
 
 ## Known Risks
-- Tight coupling to `mcp-proxy` upstream; breaking changes there affect this add-on directly
-- First-run latency: npx/uvx download packages on first use (30-60 seconds)
+- Tight coupling to `mcp-proxy` upstream; the `--named-server-config` CLI flag is the integration point -- if upstream renames it, the `run` script breaks silently
+- First-run latency: uvx servers download packages on first use (30-60 seconds). npx servers are pre-installed at container startup (v0.2.3+), shifting that delay to add-on start time instead
 
 ## Extension Guidelines
 - New domain concepts should be added to the glossary table above

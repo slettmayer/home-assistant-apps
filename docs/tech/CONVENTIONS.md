@@ -42,6 +42,8 @@ Documents naming patterns, code style, error handling, and shell scripting conve
   # ==============================================================================
   ```
 - Heredocs: single-quoted delimiter (`<< 'EOF'`) to prevent variable interpolation
+- Inline Python: use `python3 -c "..."` for JSON manipulation in shell scripts; do not parse JSON with shell tools (`grep`, `awk`, `cut`)
+- Intentionally unquoted variables: when a variable may be empty and should expand to nothing (not an empty string argument), leave it unquoted (e.g., `${pass_env_flag}`). Document the intent with a comment
 
 ### YAML Style
 - Indentation: 2 spaces
@@ -69,6 +71,10 @@ Documents naming patterns, code style, error handling, and shell scripting conve
 ## Design Decisions
 - `with-contenv bashio` shebang over plain bash: provides access to HA Supervisor environment and the `bashio` helper library in every script
 - Full paths to `uv tool` binaries in service scripts: Dockerfile `ENV PATH` is not available in s6 service context
+
+### Option Value Transformation
+- HA option schema values are always lowercase (e.g., `debug`, `info`)
+- When the target daemon requires different casing, transform inline in the `run` script via variable reassignment (e.g., `log_level=$(echo "${log_level}" | tr '[:lower:]' '[:upper:]')`)
 
 ## Known Risks
 - No `shellcheck` or `yamllint` in CI; shell script errors are only caught at runtime
