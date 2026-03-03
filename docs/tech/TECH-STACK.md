@@ -27,7 +27,7 @@ Documents the languages, frameworks, build tools, and runtime dependencies used 
 - **mcp-proxy** (`github.com/sparfenyuk/mcp-proxy`) -- the core bridging daemon; installed via `uv tool install mcp-proxy`
 
 ### Build Tools
-- **uv / uvx** (Astral) -- Python tool manager; `uv tool install` installs `mcp-proxy` at build time into `/usr/local/uv-tools`; `uvx` is available at runtime for users to launch Python MCP servers
+- **uv / uvx** (Astral) -- Python tool manager; binaries sourced via `COPY --from=ghcr.io/astral-sh/uv:latest` (unpinned). `uv tool install` installs `mcp-proxy` at build time into `/usr/local/uv-tools`; `uvx` is available at runtime for users to launch Python MCP servers. `UV_PYTHON_PREFERENCE=only-system` forces `uv` to use system Python 3 (never downloads its own interpreter)
 - **npm / npx** -- installed in the container for users to launch Node.js MCP servers
 - **home-assistant/builder** -- official HA GitHub Action wrapping `docker buildx` for multi-arch builds
 
@@ -50,7 +50,7 @@ Documents the languages, frameworks, build tools, and runtime dependencies used 
 - `ghcr.io/home-assistant/{arch}-base-debian:trixie` (base image)
 - `ghcr.io/astral-sh/uv:latest` (build-time binary copy for `uv`/`uvx`)
 - `mcp-proxy` from PyPI (installed via `uv tool install`)
-- Debian packages: `python3`, `python3-pip`, `python3-venv`, `python3-dev`, `nodejs`, `npm`, `build-essential`, `ca-certificates`, `curl`, `git`
+- Debian packages: `python3`, `python3-pip`, `python3-venv`, `python3-dev`, `nodejs`, `npm`, `build-essential`, `ca-certificates`, `curl`, `git` (`curl`/`git` enable MCP servers to make HTTPS calls and pull from git sources)
 
 ## Design Decisions
 - Debian trixie over Alpine: glibc compatibility for arbitrary third-party MCP server native deps
@@ -60,6 +60,7 @@ Documents the languages, frameworks, build tools, and runtime dependencies used 
 ## Known Risks
 - Image size is large due to Debian base + build tools + Node.js + Python; this is an intentional tradeoff for compatibility
 - `home-assistant/builder@master` is pinned to `master` branch, not a specific tag -- upstream changes could affect builds silently
+- `ghcr.io/astral-sh/uv:latest` is unpinned -- a breaking `uv` release could silently break image builds
 
 ## Extension Guidelines
 - To add a new system dependency, add it to the `apt-get install` line in `mcp-proxy/Dockerfile`

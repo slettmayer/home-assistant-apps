@@ -37,6 +37,11 @@ Builder flags:
 - `--image mcp-proxy` -- image name
 - `--target mcp-proxy` -- add-on directory
 - `--addon` -- build mode
+- `--test` (PRs only) -- builds the image without pushing to GHCR
+
+On pull requests, GHCR login is skipped and `--test` prevents image push. PRs from forks follow the same path (test build only).
+
+Note: the workflow uses `paths-ignore` to skip builds for documentation-only changes (`*.md`, `docs/**`, `LICENSE`). Since `main` requires passing CI checks, documentation-only PRs will not get a CI status -- they must be merged by a maintainer.
 
 ### Image Registry
 Images are published to `ghcr.io/slettmayer/mcp-proxy:<version>`.
@@ -44,7 +49,7 @@ Images are published to `ghcr.io/slettmayer/mcp-proxy:<version>`.
 The `image` field in `mcp-proxy/config.yaml` tells HA to pull pre-built images from GHCR instead of building locally. Without this field, HA always builds from the Dockerfile.
 
 ### Deployment Model
-1. User adds `https://github.com/slettmayer/ha-app-mcp-proxy` as a repository in HA Add-on Store
+1. User adds `https://github.com/slettmayer/home-assistant-apps` as a repository in HA Add-on Store
 2. HA Supervisor reads `repository.yaml` and discovers add-ons
 3. On install, HA pulls `ghcr.io/slettmayer/mcp-proxy:<version>`
 4. HA Supervisor manages the container lifecycle (start, stop, watchdog restart)
@@ -63,6 +68,7 @@ The `image` field in `mcp-proxy/config.yaml` tells HA to pull pre-built images f
 
 ## Known Risks
 - `home-assistant/builder@master` is not pinned to a tag or SHA; upstream changes could break builds
+- `ghcr.io/astral-sh/uv:latest` is not pinned; a breaking `uv` release could silently break image builds
 - No image signing or attestation beyond what the HA builder provides by default
 
 ## Extension Guidelines

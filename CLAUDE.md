@@ -1,5 +1,5 @@
-# MCP Proxy for Home Assistant
-> HA add-on bridging stdio-based MCP servers to SSE/StreamableHTTP endpoints via mcp-proxy.
+# Home Assistant Apps
+> HA add-on repository; currently hosts the MCP Proxy add-on bridging stdio-based MCP servers to SSE/StreamableHTTP endpoints via mcp-proxy.
 
 ## Quick Reference
 - **Build**: CI via `home-assistant/builder` on push/PR to `main` (no local build script)
@@ -48,14 +48,18 @@ Every release requires these steps:
 - `config.yaml` MUST have an `image` field or HA builds locally instead of pulling from GHCR
 - `pass_environment` leaks `SUPERVISOR_TOKEN` to MCP servers -- default is off for a reason
 - `home-assistant/builder@master` is unpinned; upstream changes can break builds
+- Never place `servers.json` inside `rootfs/`; user config lives at `/config/servers.json` via `addon_config:rw` mount
 
 ## Branch Protection
 - `main` requires PRs with passing CI checks -- no direct pushes
 
 ## Structural Risks
+- No `.gitignore` -- risk of committing secrets (e.g., `servers.json` with API keys in `rootfs/`)
 - No shellcheck or yamllint in CI; script errors only caught at runtime
 - No automated tests; validation is manual HA deployment
+- `ghcr.io/astral-sh/uv:latest` is unpinned; breaking changes can silently affect builds
 - Qodana/CheckStyle configs are dead JVM scaffolding (no Java in project) -- should be removed
+- Doc-only PRs skip CI (`paths-ignore`), so they get no status check on `main`
 
 ## Detailed Guides
 - [Technical Context](docs/tech/README.md) -- architecture, tech stack, conventions, infrastructure
