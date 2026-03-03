@@ -1,0 +1,8 @@
+build_from:
+  aarch64: ghcr.io/home-assistant/aarch64-base-debian:trixie
+  amd64: ghcr.io/home-assistant/amd64-base-debian:trixie
+labels:
+  org.opencontainers.image.title: "Home Assistant Add-on: MCP Proxy"
+  org.opencontainers.image.description: "Bridges stdio MCP servers to SSE for HA LLMs"
+  org.opencontainers.image.source: https://github.com/slettmayer/ha-app-mcp-proxy
+  org.opencontainers.image.licenses: MIT

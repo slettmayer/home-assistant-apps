@@ -1,0 +1,26 @@
+name: MCP Proxy
+version: "0.1.0"
+slug: mcp_proxy
+description: >-
+  Bridges stdio-based MCP servers to SSE/StreamableHTTP
+  for Home Assistant LLM integrations.
+url: https://github.com/slettmayer/ha-app-mcp-proxy
+arch:
+  - aarch64
+  - amd64
+startup: services
+boot: auto
+init: false
+map:
+  - addon_config:rw
+ports:
+  "9876/tcp": 9876
+ports_description:
+  "9876/tcp": MCP Proxy HTTP/SSE endpoint
+watchdog: http://[HOST]:[PORT:9876]/status
+options:
+  log_level: info
+  pass_environment: false
+schema:
+  log_level: list(debug|info|warning|error)
+  pass_environment: bool

@@ -1,0 +1,18 @@
+#!/usr/bin/with-contenv bashio
+
+log_level=$(bashio::config 'log_level' 'info')
+
+pass_env_flag=""
+if bashio::config.true 'pass_environment'; then
+    pass_env_flag="--pass-environment"
+    bashio::log.warning "pass_environment is enabled — all container env vars (including SUPERVISOR_TOKEN) will be passed to MCP servers"
+fi
+
+bashio::log.info "Starting MCP Proxy on 0.0.0.0:9876..."
+
+exec mcp-proxy \
+    --host 0.0.0.0 \
+    --port 9876 \
+    ${pass_env_flag} \
+    --log-level "${log_level}" \
+    --named-server-config /config/servers.json

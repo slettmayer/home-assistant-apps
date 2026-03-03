@@ -1,0 +1,11 @@
+configuration:
+  log_level:
+    name: Log Level
+    description: Controls the verbosity of mcp-proxy logging.
+  pass_environment:
+    name: Pass Environment
+    description: >-
+      Pass all container environment variables to spawned MCP servers.
+      Warning: this includes SUPERVISOR_TOKEN and other HA internal variables.
+network:
+  9876/tcp: MCP Proxy HTTP/SSE endpoint
