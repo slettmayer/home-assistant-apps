@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- Pre-install npm packages for npx-based MCP servers during init to prevent mcp-proxy timeout on first connection
+
 ## 0.2.2
 
 - Fix log level: convert to uppercase as required by mcp-proxy (DEBUG, INFO, WARNING, ERROR, CRITICAL)
