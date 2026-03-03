@@ -3,8 +3,20 @@ name: Build Add-on
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "*.md"
+      - "docs/**"
+      - "mcp-proxy/DOCS.md"
+      - "mcp-proxy/CHANGELOG.md"
+      - "LICENSE"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "*.md"
+      - "docs/**"
+      - "mcp-proxy/DOCS.md"
+      - "mcp-proxy/CHANGELOG.md"
+      - "LICENSE"
 
 jobs:
   build:
@@ -18,6 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Log in to GHCR
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -27,6 +40,7 @@ jobs:
         uses: home-assistant/builder@master
         with:
           args: |
+            ${{ github.event_name == 'pull_request' && '--test' || '' }} \
             --${{ matrix.arch }} \
             --target mcp-proxy \
             --docker-hub ghcr.io/${{ github.repository_owner }} \
