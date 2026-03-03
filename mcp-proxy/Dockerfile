@@ -15,6 +15,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
 # Install mcp-proxy via uv tool
 ENV UV_TOOL_DIR=/usr/local/uv-tools \
+    UV_TOOL_BIN_DIR=/usr/local/uv-tools/bin \
     UV_PYTHON_PREFERENCE=only-system
 RUN uv tool install mcp-proxy
 ENV PATH="/usr/local/uv-tools/bin:${PATH}"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Fix mcp-proxy binary not found: set `UV_TOOL_BIN_DIR` so uv installs entry points to the expected path
+
 ## 0.2.0
 
 - Initial working release
