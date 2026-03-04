@@ -1,0 +1,91 @@
+name: Dependabot Version Bump
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  version-bump:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Extract current version
+        id: version
+        run: |
+          current=$(grep '^version:' mcp-proxy/config.yaml | sed 's/version: *"\(.*\)"/\1/')
+          major=$(echo "${current}" | cut -d. -f1)
+          minor=$(echo "${current}" | cut -d. -f2)
+          patch=$(echo "${current}" | cut -d. -f3)
+          new_patch=$((patch + 1))
+          new_version="${major}.${minor}.${new_patch}"
+          echo "current=${current}" >> "$GITHUB_OUTPUT"
+          echo "new=${new_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if already bumped
+        id: check
+        run: |
+          if grep -q "^## ${NEW_VERSION}$" mcp-proxy/CHANGELOG.md; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new }}
+
+      - name: Extract dependency name from PR title
+        if: steps.check.outputs.skip == 'false'
+        id: dep
+        run: |
+          dep=$(echo "${PR_TITLE}" | sed -n 's/^Bump \(.*\) from .*/\1/p')
+          if [ -z "${dep}" ]; then
+            dep="dependency"
+          fi
+          echo "name=${dep}" >> "$GITHUB_OUTPUT"
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+
+      - name: Bump version in config.yaml
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          sed -i "s/^version: \"${CURRENT}\"/version: \"${NEW}\"/" mcp-proxy/config.yaml
+        env:
+          CURRENT: ${{ steps.version.outputs.current }}
+          NEW: ${{ steps.version.outputs.new }}
+
+      - name: Add changelog entry
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          tmp=$(mktemp)
+          {
+            echo "# Changelog"
+            echo ""
+            echo "## ${NEW}"
+            echo ""
+            echo "- Bump ${DEP_NAME} (Dependabot)"
+            # Skip the first line (# Changelog) and the blank line after it
+            tail -n +3 mcp-proxy/CHANGELOG.md
+          } > "${tmp}"
+          mv "${tmp}" mcp-proxy/CHANGELOG.md
+        env:
+          NEW: ${{ steps.version.outputs.new }}
+          DEP_NAME: ${{ steps.dep.outputs.name }}
+
+      - name: Commit and push
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mcp-proxy/config.yaml mcp-proxy/CHANGELOG.md
+          git commit -m "Bump version to ${NEW} for Dependabot update"
+          git push
+        env:
+          NEW: ${{ steps.version.outputs.new }}
