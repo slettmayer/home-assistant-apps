@@ -59,7 +59,7 @@ Every release requires these steps:
 - No automated tests; validation is manual HA deployment
 - `ghcr.io/astral-sh/uv:latest` is unpinned; breaking changes can silently affect builds
 - Qodana/CheckStyle configs are dead JVM scaffolding (no Java in project) -- should be removed
-- Doc-only PRs skip CI (`paths-ignore`), so they get no status check on `main`
+- Doc-only PRs rely on the `gate` job (which passes when `build` is skipped); branch protection must require `gate` not `build`
 
 ## Detailed Guides
 - [Technical Context](docs/tech/README.md) -- architecture, tech stack, conventions, infrastructure

@@ -11,15 +11,28 @@ on:
       - "LICENSE"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "*.md"
-      - "docs/**"
-      - "mcp-proxy/DOCS.md"
-      - "mcp-proxy/CHANGELOG.md"
-      - "LICENSE"
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - '!**/*.md'
+              - '!docs/**'
+              - '!LICENSE'
+
   build:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -48,3 +61,18 @@ jobs:
             --image mcp-proxy \
             --cosign \
             --addon
+
+  gate:
+    needs: [build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check build result
+        run: |
+          if [[ "${{ needs.build.result }}" =~ ^(success|skipped)$ ]]; then
+            echo "Build passed or was skipped (docs-only change)"
+            exit 0
+          else
+            echo "Build failed or was cancelled"
+            exit 1
+          fi

@@ -41,7 +41,12 @@ Builder flags:
 
 On pull requests, GHCR login is skipped and `--test` prevents image push. PRs from forks follow the same path (test build only).
 
-Note: the workflow uses `paths-ignore` to skip builds for documentation-only changes (`*.md`, `docs/**`, `LICENSE`). Since `main` requires passing CI checks, documentation-only PRs will not get a CI status -- they must be merged by a maintainer.
+The workflow uses a `changes` → `build` → `gate` pattern to handle documentation-only PRs:
+1. **`changes`** -- uses `dorny/paths-filter@v3` to detect whether the PR touches code (non-doc files). Outputs `code: true/false`.
+2. **`build`** -- the existing matrix build, now conditional on `needs.changes.outputs.code == 'true'`. Skipped entirely for docs-only PRs.
+3. **`gate`** -- runs after `build` with `if: always()`. Passes if `build` succeeded or was skipped; fails if `build` failed or was cancelled.
+
+Branch protection requires the `gate` check (not `build`), so docs-only PRs merge cleanly while code PRs still get the full build validation.
 
 ### Image Registry
 Images are published to `ghcr.io/slettmayer/mcp-proxy:<version>`.
