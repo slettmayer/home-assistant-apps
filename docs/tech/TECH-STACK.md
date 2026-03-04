@@ -29,7 +29,7 @@ Documents the languages, frameworks, build tools, and runtime dependencies used 
 ### Build Tools
 - **uv / uvx** (Astral) -- Python tool manager; binaries sourced via `COPY --from=ghcr.io/astral-sh/uv:latest` (unpinned). `uv tool install` installs `mcp-proxy` at build time into `/usr/local/uv-tools`; `uvx` is available at runtime for users to launch Python MCP servers. `UV_PYTHON_PREFERENCE=only-system` forces `uv` to use system Python 3 (never downloads its own interpreter)
 - **npm / npx** -- installed in the container for users to launch Node.js MCP servers
-- **home-assistant/builder** -- official HA GitHub Action wrapping `docker buildx` for multi-arch builds
+- **home-assistant/builder** -- official HA GitHub Action wrapping `docker buildx` for multi-arch builds; pinned to SHA in workflow, managed by Dependabot
 
 ### Base Image
 - `ghcr.io/home-assistant/{arch}-base-debian:trixie` (Debian 13)
@@ -59,8 +59,7 @@ Documents the languages, frameworks, build tools, and runtime dependencies used 
 
 ## Known Risks
 - Image size is large due to Debian base + build tools + Node.js + Python; this is an intentional tradeoff for compatibility
-- `home-assistant/builder@master` is pinned to `master` branch, not a specific tag -- upstream changes could affect builds silently
-- `ghcr.io/astral-sh/uv:latest` is unpinned -- a breaking `uv` release could silently break image builds
+- `ghcr.io/astral-sh/uv:latest` is unpinned and not monitored by Dependabot -- a breaking `uv` release could silently break image builds
 
 ## Extension Guidelines
 - To add a new system dependency, add it to the `apt-get install` line in `mcp-proxy/Dockerfile`
