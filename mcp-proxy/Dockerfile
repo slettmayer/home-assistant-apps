@@ -1,5 +1,5 @@
 ARG BUILD_FROM
-FROM ${BUILD_FROM}
+FROM ${BUILD_FROM} AS base
 
 # System deps: Python 3, Node.js + npm (for npx), build tools (for native MCP deps)
 RUN apt-get update \
@@ -20,4 +20,15 @@ ENV UV_TOOL_DIR=/usr/local/uv-tools \
 RUN uv tool install mcp-proxy
 ENV PATH="/usr/local/uv-tools/bin:${PATH}"
 
+# Smoke-test stage: verify all critical tools are functional
+FROM base AS test
+RUN python3 --version \
+    && uv --version \
+    && uvx --version \
+    && node --version \
+    && npx --version \
+    && /usr/local/uv-tools/bin/mcp-proxy --version
+
+# Final stage: derived from test so BuildKit cannot skip it
+FROM test
 COPY rootfs /
