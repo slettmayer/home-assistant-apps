@@ -16,19 +16,20 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.filter.outputs.code }}
+      code: ${{ steps.changed.outputs.any_modified }}
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
+      - uses: tj-actions/changed-files@v45
+        id: changed
         with:
-          filters: |
-            code:
-              - '!**/*.md'
-              - '!docs/**'
-              - '!LICENSE'
+          files_ignore: |
+            *.md
+            docs/**
+            mcp-proxy/DOCS.md
+            mcp-proxy/CHANGELOG.md
+            LICENSE
 
   build:
     needs: [changes]

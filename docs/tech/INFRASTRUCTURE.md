@@ -45,7 +45,7 @@ Builder flags:
 On pull requests, GHCR login is skipped and `--test` prevents image push. PRs from forks follow the same path (test build only).
 
 The workflow uses a `changes` → `build` → `gate` pattern to handle documentation-only PRs:
-1. **`changes`** -- uses `dorny/paths-filter@v3` to detect whether the PR touches code (non-doc files). Outputs `code: true/false`.
+1. **`changes`** -- uses `tj-actions/changed-files@v45` to detect whether the PR touches code (non-doc files). Outputs `code: true/false`.
 2. **`build`** -- the existing matrix build, now conditional on `needs.changes.outputs.code == 'true'`. Skipped entirely for docs-only PRs.
 3. **`gate`** -- runs after `build` with `if: always()`. Passes if `build` succeeded or was skipped; fails if `build` failed or was cancelled.
 
@@ -94,7 +94,7 @@ The `image` field in `mcp-proxy/config.yaml` tells HA to pull pre-built images f
 ## Dependencies
 - GitHub Actions runners (ubuntu-latest)
 - `docker/login-action@v4`
-- `dorny/paths-filter@v3` (detects code vs docs-only changes on PRs)
+- `tj-actions/changed-files@v45` (detects code vs docs-only changes on PRs)
 - `home-assistant/builder` (pinned to SHA, managed by Dependabot)
 - `actions/create-github-app-token@v2` (Dependabot version bump workflow)
 - GHCR (`ghcr.io`)
