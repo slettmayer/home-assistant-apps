@@ -4,7 +4,7 @@
 ## Quick Reference
 - **Build**: CI via `home-assistant/builder` on push/PR to `main` (no local build script)
 - **Run**: Deploy to HA instance with repo URL; no local dev server
-- **Test**: No automated tests; validation by deploying to HA
+- **Test**: Docker smoke tests validate critical tools on every build; no unit/integration tests; validation by deploying to HA
 - **Lint**: No linter configured (shellcheck/yamllint recommended but not set up)
 
 ## Architecture Overview
@@ -39,26 +39,26 @@ Every release requires these steps:
 1. Bump `version` in `mcp-proxy/config.yaml` (semver)
 2. Update `mcp-proxy/CHANGELOG.md` with new version section
 3. The `image` field stays as `ghcr.io/slettmayer/mcp-proxy` (no tag -- HA appends version)
-4. Merge PR to `main`, then create GitHub release:
-   ```bash
-   gh release create v<version> --target main --title "v<version>" --notes "..."
-   ```
+4. Merge PR to `main` -- GitHub release is created automatically by `.github/workflows/release.yaml`
+
+For Dependabot PRs, steps 1-2 are handled automatically by the `dependabot-version-bump` workflow.
 
 ## Critical Warnings
 - `config.yaml` MUST have an `image` field or HA builds locally instead of pulling from GHCR
 - `pass_environment` leaks `SUPERVISOR_TOKEN` to MCP servers -- default is off for a reason
-- `home-assistant/builder@master` is unpinned; upstream changes can break builds
+- `home-assistant/builder` is pinned to a SHA; Dependabot monitors for updates (GitHub Actions ecosystem only)
 - Never place `servers.json` inside `rootfs/`; user config lives at `/config/servers.json` via `addon_config:rw` mount
 
 ## Branch Protection
 - `main` requires PRs with passing CI checks -- no direct pushes
 
 ## Structural Risks
-- No `.gitignore` -- risk of committing secrets (e.g., `servers.json` with API keys in `rootfs/`)
+- No root `.gitignore` -- risk of committing secrets (e.g., `servers.json` with API keys in `rootfs/`)
 - No shellcheck or yamllint in CI; script errors only caught at runtime
-- No automated tests; validation is manual HA deployment
-- `ghcr.io/astral-sh/uv:latest` is unpinned; breaking changes can silently affect builds
+- No unit/integration tests; Docker smoke tests cover tool availability only
+- `ghcr.io/astral-sh/uv:latest` is unpinned; Dependabot does not monitor Docker image refs, only GitHub Actions
 - Qodana/CheckStyle configs are dead JVM scaffolding (no Java in project) -- should be removed
+- `mcp-proxy/CHANGELOG.md` format is load-bearing: must start with `# Changelog\n\n` and use `## X.Y.Z` headers (dependabot-version-bump workflow depends on this)
 - Doc-only PRs rely on the `gate` job (which passes when `build` is skipped); branch protection must require `gate` not `build`
 
 ## Detailed Guides

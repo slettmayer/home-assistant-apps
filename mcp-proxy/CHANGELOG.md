@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.8
+
+- Add auto-release workflow: GitHub releases are now created automatically on version bump
+- Update CI/CD and infrastructure documentation
+
 ## 0.2.7
 
 - Bump actions/checkout (Dependabot)
