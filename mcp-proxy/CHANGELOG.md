@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.7
+
+- Bump actions/checkout (Dependabot)
+
 ## 0.2.6
 
 - Bump docker/login-action (Dependabot)
