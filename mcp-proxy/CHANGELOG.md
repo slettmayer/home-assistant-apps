@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.6
+
+- Bump docker/login-action (Dependabot)
+
 ## 0.2.5
 
 - Add Docker build smoke tests to CI for critical tools (node, npm, npx, python3, uv, uvx, mcp-proxy)
