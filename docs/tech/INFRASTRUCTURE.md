@@ -26,8 +26,8 @@ The Dockerfile uses a three-stage build (`base` -> `test` -> final). The `test` 
 
 ### CI/CD Pipeline
 Defined in `.github/workflows/build.yaml`. Triggers:
-- Push to `main`
-- Pull requests targeting `main`
+- Push to `main` (with `paths-ignore` for docs files -- docs-only pushes skip the workflow entirely since no branch protection applies post-merge)
+- Pull requests targeting `main` (no `paths-ignore` -- always triggers so the `gate` check is reported)
 
 Steps per architecture (`aarch64`, `amd64` matrix):
 1. Checkout code
@@ -93,7 +93,8 @@ The `image` field in `mcp-proxy/config.yaml` tells HA to pull pre-built images f
 
 ## Dependencies
 - GitHub Actions runners (ubuntu-latest)
-- `docker/login-action@v3`
+- `docker/login-action@v4`
+- `dorny/paths-filter@v3` (detects code vs docs-only changes on PRs)
 - `home-assistant/builder` (pinned to SHA, managed by Dependabot)
 - `actions/create-github-app-token@v2` (Dependabot version bump workflow)
 - GHCR (`ghcr.io`)
