@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.9
+
+- Bump actions/checkout (Dependabot)
+
 ## 0.2.8
 
 - Add auto-release workflow: GitHub releases are now created automatically on version bump
