@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -42,7 +42,7 @@ jobs:
       packages: write
       id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Log in to GHCR
         if: github.event_name == 'push'
         uses: docker/login-action@v4
@@ -51,7 +51,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build add-on
-        uses: home-assistant/builder@62a1597b84b3461abad9816d9cd92862a2b542c3 # v2026.03.2
+        uses: home-assistant/builder@4de35182ce1e329181bffcbcc84d33db5e2c7e10 # v2026.06.0
         with:
           args: |
             ${{ github.event_name == 'pull_request' && '--test' || '' }} \
