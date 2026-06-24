@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.13
+
+- Bump dependency (Dependabot)
+
 ## 0.2.12
 
 - Bump home-assistant/builder (Dependabot)
