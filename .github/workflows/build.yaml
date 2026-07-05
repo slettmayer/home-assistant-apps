@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -30,49 +30,107 @@ jobs:
               - '!docs/**'
               - '!LICENSE'
 
-  build:
+  prepare:
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Extract add-on version
+        id: version
+        run: echo "version=$(yq '.version' mcp-proxy/config.yaml)" >> "$GITHUB_OUTPUT"
+      - name: Prepare multi-arch build matrix
+        id: matrix
+        # home-assistant/builder composable actions (the monolithic action was
+        # deprecated in 2026.03.0 and its legacy builder image removed in 2026.06.0)
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@4de35182ce1e329181bffcbcc84d33db5e2c7e10 # 2026.06.0
+        with:
+          architectures: '["aarch64", "amd64"]'
+          image-name: mcp-proxy
+
+  build:
+    needs: [prepare]
+    runs-on: ${{ matrix.os }}
     strategy:
-      matrix:
-        arch: [aarch64, amd64]
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     permissions:
       contents: read
       packages: write
       id-token: write
     steps:
-      - uses: actions/checkout@v6
-      - name: Log in to GHCR
-        if: github.event_name == 'push'
-        uses: docker/login-action@v4
+      - uses: actions/checkout@v7
+      - name: Read add-on build config
+        id: cfg
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          echo "build_from=$(yq ".build_from.${ARCH}" mcp-proxy/build.yaml)" >> "$GITHUB_OUTPUT"
+          {
+            echo "labels<<EOF"
+            yq '.labels | to_entries | .[] | .key + "=" + .value' mcp-proxy/build.yaml
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Build ${{ matrix.arch }} image
+        # On pull requests: build only (push/cosign disabled) -- still runs the
+        # Dockerfile "test" stage, preserving the smoke tests. On push to main:
+        # push + sign each per-arch image, then combine them in the manifest job.
+        uses: home-assistant/builder/actions/build-image@4de35182ce1e329181bffcbcc84d33db5e2c7e10 # 2026.06.0
         with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build add-on
-        uses: home-assistant/builder@62a1597b84b3461abad9816d9cd92862a2b542c3 # v2026.03.2
+          arch: ${{ matrix.arch }}
+          image: ${{ matrix.image }}
+          image-tags: |
+            ${{ needs.prepare.outputs.version }}
+            latest
+          version: ${{ needs.prepare.outputs.version }}
+          context: mcp-proxy
+          build-args: |
+            BUILD_FROM=${{ steps.cfg.outputs.build_from }}
+          labels: ${{ steps.cfg.outputs.labels }}
+          push: ${{ github.event_name == 'push' }}
+          cosign: ${{ github.event_name == 'push' }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  manifest:
+    needs: [prepare, build]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Publish multi-arch manifest
+        # Combines the per-arch images into ghcr.io/<owner>/mcp-proxy:<version>
+        # (the image ref HA pulls) as a real multi-arch manifest.
+        uses: home-assistant/builder/actions/publish-multi-arch-manifest@4de35182ce1e329181bffcbcc84d33db5e2c7e10 # 2026.06.0
         with:
-          args: |
-            ${{ github.event_name == 'pull_request' && '--test' || '' }} \
-            --${{ matrix.arch }} \
-            --target mcp-proxy \
-            --docker-hub ghcr.io/${{ github.repository_owner }} \
-            --image mcp-proxy \
-            --cosign \
-            --addon
+          architectures: '["aarch64", "amd64"]'
+          image-name: mcp-proxy
+          image-tags: |
+            ${{ needs.prepare.outputs.version }}
+            latest
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
 
   gate:
-    needs: [build]
+    needs: [build, manifest]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Check build result
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          MANIFEST_RESULT: ${{ needs.manifest.result }}
         run: |
-          if [[ "${{ needs.build.result }}" =~ ^(success|skipped)$ ]]; then
-            echo "Build passed or was skipped (docs-only change)"
+          if [[ "${BUILD_RESULT}" =~ ^(success|skipped)$ && "${MANIFEST_RESULT}" =~ ^(success|skipped)$ ]]; then
+            echo "Build/manifest passed or were skipped (docs-only change)"
             exit 0
           else
-            echo "Build failed or was cancelled"
+            echo "Build failed or was cancelled (build=${BUILD_RESULT}, manifest=${MANIFEST_RESULT})"
             exit 1
           fi

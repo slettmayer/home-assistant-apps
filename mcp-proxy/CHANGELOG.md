@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.13
+
+- Migrate CI to the `home-assistant/builder` composable actions (`prepare-multi-arch-matrix`, `build-image`, `publish-multi-arch-manifest`); the monolithic builder action was deprecated in 2026.03.0 and its legacy builder image was removed in 2026.06.0
+- Publish `ghcr.io/slettmayer/mcp-proxy` as a real multi-arch manifest (previously the amd64 and aarch64 matrix builds raced to the same tag, leaving only one architecture published)
+- Build each architecture on its native runner (no QEMU emulation)
+- Bump actions/checkout to v7 (Dependabot)
+
 ## 0.2.12
 
 - Bump home-assistant/builder (Dependabot)
