@@ -1,4 +1,7 @@
-ARG BUILD_FROM
+# BUILD_FROM is supplied by CI (per-arch, from build.yaml). The default only
+# applies to a manual `docker build` without --build-arg, and silences the
+# BuildKit InvalidDefaultArgInFrom warning.
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:trixie
 FROM ${BUILD_FROM} AS base
 
 # System deps: Python 3, Node.js + npm (for npx), build tools (for native MCP deps)

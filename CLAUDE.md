@@ -54,12 +54,11 @@ For Dependabot PRs, steps 1-2 are handled automatically by the `dependabot-versi
 - `main` requires PRs with passing CI checks -- no direct pushes
 
 ## Structural Risks
-- No root `.gitignore` -- risk of committing secrets (e.g., `servers.json` with API keys in `rootfs/`)
+- No secret-scanning in CI; the root `.gitignore` ignores `servers.json` (defends against committing API keys, esp. under `rootfs/`), but nothing enforces it beyond that
 - No shellcheck or yamllint in CI; script errors only caught at runtime
 - No unit/integration tests; Docker smoke tests cover tool availability only
 - `ghcr.io/astral-sh/uv:latest` is unpinned; Dependabot does not monitor Docker image refs, only GitHub Actions
-- `.idea/` is partially tracked (module/plugin config committed, workspace state excluded via `.idea/.gitignore`); `qodana.yaml` targets `jetbrains/qodana-jvm-community` with `projectJDK: "21"` -- runnable but incorrect JVM analysis config for a non-Java project
-- `.claude/settings.local.json` exists untracked -- no root `.gitignore` means it could be committed accidentally
+- `.idea/`, `qodana.yaml`, and `.claude/settings.local.json` are git-ignored via the root `.gitignore` (local IDE/analysis/agent config, not tracked)
 - `mcp-proxy/CHANGELOG.md` format is load-bearing: must start with `# Changelog\n\n` and use `## X.Y.Z` headers (dependabot-version-bump workflow depends on this)
 - Doc-only PRs rely on the `gate` job (which passes when `build` is skipped); branch protection must require `gate` not `build`
 
