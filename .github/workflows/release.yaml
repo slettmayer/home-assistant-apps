@@ -1,19 +1,26 @@
 name: Auto Release
 
+# Runs only after the "Build Add-on" workflow finishes, so the GitHub release
+# is never created before the add-on images are actually built and published.
 on:
-  push:
+  workflow_run:
+    workflows: ["Build Add-on"]
+    types: [completed]
     branches: [main]
-    paths:
-      - "mcp-proxy/config.yaml"
 
 jobs:
   release:
+    # Only for a successful push build (not PRs, not failed/cancelled builds).
+    if: >-
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
       - name: Extract version
@@ -55,8 +62,10 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         run: |
           gh release create "${TAG}" \
+            --target "${SHA}" \
             --title "${TAG}" \
             --notes-file /tmp/release-notes.md
         env:
           TAG: ${{ steps.version.outputs.tag }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
