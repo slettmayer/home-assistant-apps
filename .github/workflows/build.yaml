@@ -24,8 +24,14 @@ jobs:
       - uses: dorny/paths-filter@v4
         id: filter
         with:
+          # Match any changed file that is NOT documentation. Needs a positive
+          # '**' catch-all plus predicate-quantifier: every so the negations
+          # exclude -- a negated-only list matches everything under the default
+          # OR logic (making the docs-only skip never fire).
+          predicate-quantifier: every
           filters: |
             code:
+              - '**'
               - '!**/*.md'
               - '!docs/**'
               - '!LICENSE'
