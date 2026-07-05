@@ -39,7 +39,7 @@ Every release requires these steps:
 1. Bump `version` in `mcp-proxy/config.yaml` (semver)
 2. Update `mcp-proxy/CHANGELOG.md` with new version section
 3. The `image` field stays as `ghcr.io/slettmayer/mcp-proxy` (no tag -- HA appends version)
-4. Merge PR to `main` -- GitHub release is created automatically by `.github/workflows/release.yaml`
+4. Merge PR to `main` -- once the `Build Add-on` workflow succeeds, `.github/workflows/release.yaml` (triggered via `workflow_run`) creates the GitHub release automatically
 
 For Dependabot PRs, steps 1-2 are handled automatically by the `dependabot-version-bump` workflow.
 
