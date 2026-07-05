@@ -29,7 +29,7 @@ Documents the languages, frameworks, build tools, and runtime dependencies used 
 ### Build Tools
 - **uv / uvx** (Astral) -- Python tool manager; binaries sourced via `COPY --from=ghcr.io/astral-sh/uv:latest` (unpinned). `uv tool install` installs `mcp-proxy` at build time into `/usr/local/uv-tools`; `uvx` is available at runtime for users to launch Python MCP servers. `UV_PYTHON_PREFERENCE=only-system` forces `uv` to use system Python 3 (never downloads its own interpreter)
 - **npm / npx** -- installed in the container for users to launch Node.js MCP servers
-- **home-assistant/builder** -- official HA GitHub Action wrapping `docker buildx` for multi-arch builds; pinned to SHA in workflow, managed by Dependabot
+- **home-assistant/builder** -- HA's official builder, used via its composable actions (`prepare-multi-arch-matrix`, `build-image`, `publish-multi-arch-manifest`) wrapping `docker buildx` for native per-arch multi-arch builds; pinned to SHA in workflow, managed by Dependabot (the monolithic `home-assistant/builder` action it replaced was deprecated in 2026.03.0)
 
 ### Base Image
 - `ghcr.io/home-assistant/{arch}-base-debian:trixie` (Debian 13)
