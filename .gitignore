@@ -10,6 +10,10 @@ qodana.yaml
 # Local Claude Code settings
 .claude/settings.local.json
 
+# Python bytecode (the build-time smoke test is a .py file)
+__pycache__/
+*.pyc
+
 # Home Assistant add-on user config -- contains secrets and lives at
 # /config/servers.json at runtime; must never be committed (esp. under rootfs/)
 servers.json

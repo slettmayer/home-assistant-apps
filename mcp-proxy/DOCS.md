@@ -25,7 +25,36 @@ You can edit this file using:
 - **SSH** — edit `/addon-configs/mcp_proxy/servers.json`
 - **Samba** — access the `addon_configs` share
 
-On first start, the add-on creates a default config with a calculator example server.
+On first start, the add-on creates a default config with a weather example server
+([`geosphere-mcp-server`](https://pypi.org/project/geosphere-mcp-server/)), which needs no API key.
+
+### Pin your MCP servers
+
+Most MCP servers depend on the `mcp` Python SDK, and many declare it with **no upper version bound**
+(e.g. `mcp>=1.4.1`). `mcp` 2.0.0 was a breaking release, so such a server can start resolving an
+incompatible SDK and fail at launch — without you changing anything. A crashing server takes the whole
+proxy down with it, not just itself.
+
+Two habits avoid this:
+
+- **Don't use `@latest`.** `uvx mcp-server-foo@latest` forces a fresh dependency resolve on every
+  restart, which turns a dormant risk into an outage at the worst possible moment. A plain
+  `uvx mcp-server-foo` reuses the cached environment.
+- **Constrain the SDK yourself** when a server's own bound is missing, using `--with`:
+
+  ```json
+  {
+    "mcpServers": {
+      "example": {
+        "command": "uvx",
+        "args": ["--with", "mcp<2", "mcp-server-example"]
+      }
+    }
+  }
+  ```
+
+If a server stops working after previously being fine, this is the first thing to check — the add-on log
+will show a `ModuleNotFoundError` or `ImportError` from the server process.
 
 ### Example configurations
 
@@ -36,9 +65,9 @@ The config file uses the standard MCP `mcpServers` format:
 ```json
 {
   "mcpServers": {
-    "calculator": {
+    "geosphere": {
       "command": "uvx",
-      "args": ["mcp-server-calculator"]
+      "args": ["geosphere-mcp-server"]
     }
   }
 }
@@ -78,9 +107,9 @@ The config file uses the standard MCP `mcpServers` format:
 ```json
 {
   "mcpServers": {
-    "calculator": {
+    "geosphere": {
       "command": "uvx",
-      "args": ["mcp-server-calculator"]
+      "args": ["geosphere-mcp-server"]
     },
     "filesystem": {
       "command": "npx",
@@ -105,10 +134,10 @@ Each configured MCP server is available at:
 http://<ha-host>:9876/servers/<server-name>/sse
 ```
 
-For example, if your server is named `calculator`:
+For example, if your server is named `geosphere`:
 
 ```
-http://homeassistant.local:9876/servers/calculator/sse
+http://homeassistant.local:9876/servers/geosphere/sse
 ```
 
 Use this URL when configuring MCP server connections in your Home Assistant LLM integration.
@@ -131,5 +160,6 @@ The first time an MCP server is accessed, `npx` or `uvx` may need to download pa
 
 - **"servers.json is not valid JSON"** — Check your config file for syntax errors. Use a JSON validator.
 - **Server not responding** — Check the add-on logs for errors from the MCP server process. Try running the command manually in SSH first.
+- **Add-on crash-loops, or one bad server makes all of them unavailable** — The proxy exits if any configured server fails to start, so a single broken entry takes down the rest. Look for `ModuleNotFoundError` / `ImportError` in the log to identify the culprit, then pin its SDK as described in "Pin your MCP servers" above.
 - **Connection refused on port 9876** — Make sure the port is not blocked by your network. The add-on binds to `0.0.0.0:9876`.
 - **Slow first response** — This is expected; see "First-run latency" above.

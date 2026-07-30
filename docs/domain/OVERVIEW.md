@@ -71,11 +71,13 @@ Industry: Smart home / AI tooling infrastructure.
 ## Design Decisions
 - JSON config file over HA UI: MCP server definitions are deeply nested and don't fit HA's flat options schema
 - Single port with path-based routing: avoids per-server port management
-- Default calculator example: provides immediate feedback on first install
+- Default weather example (`geosphere-mcp-server`): provides immediate feedback on first install with no API key required. The example server must declare a **bounded** MCP SDK specifier -- the previous default, `mcp-server-calculator`, declared `mcp>=1.4.1` unbounded and crash-looped every fresh install once `mcp` 2.0.0 shipped
 
 ## Known Risks
-- Tight coupling to `mcp-proxy` upstream; the `run` script depends on five CLI flags (`--host`, `--port`, `--log-level`, `--pass-environment`, `--named-server-config`) and the smoke test uses `--version` -- if upstream renames any of them, the build or `run` script breaks silently
-- First-run latency: npx/uvx download packages on first use (30-60 seconds)
+- Tight coupling to `mcp-proxy` upstream; the `run` script depends on five CLI flags (`--host`, `--port`, `--log-level`, `--pass-environment`, `--named-server-config`), and the smoke test additionally depends on `--version`, `--named-server-config`, the `/status` endpoint, and the `/servers/<name>/mcp` route shape -- if upstream renames any of them, the build or `run` script breaks
+- A single failing server takes down the whole proxy: `mcp-proxy` has no per-server error handling, so one bad entry in `servers.json` makes every other server unavailable
+- Unbounded dependency specifiers in *user-configured* servers are outside this add-on's control; the add-on's own pins do not protect them. `DOCS.md` documents the failure mode and the `uvx --with` workaround
+- First-run latency: npx/uvx download packages on first use (30-60 seconds). The build pre-warms only the default example's environment
 
 ## Extension Guidelines
 - New domain concepts should be added to the glossary table above

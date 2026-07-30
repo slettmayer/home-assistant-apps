@@ -20,9 +20,16 @@ The `Dockerfile` uses a parameterized `BUILD_FROM` base image supplied at build 
 - `aarch64`: `ghcr.io/home-assistant/aarch64-base-debian:trixie`
 - `amd64`: `ghcr.io/home-assistant/amd64-base-debian:trixie`
 
-The `uv` and `uvx` binaries are copied from `ghcr.io/astral-sh/uv:latest` via `COPY --from` (multi-arch aware).
+The `uv` and `uvx` binaries are copied from a named `uv` build stage pinned to `ghcr.io/astral-sh/uv:0.12.0` (multi-arch aware -- the tag publishes `linux/amd64` and `linux/arm64`). The stage exists so Dependabot's docker parser, which reads `FROM` lines and not inline `COPY --from=<image>` refs, can bump the tag.
 
-The Dockerfile uses a three-stage build (`base` -> `test` -> final). The `test` stage runs smoke tests verifying all critical tools are present and executable (`python3`, `uv`, `uvx`, `node`, `npx`, `mcp-proxy`). The final stage derives from `test` (not `base`), which forces BuildKit to always execute the smoke-test stage -- it cannot be skipped as an unused layer, and it runs on pull-request builds too (which build without pushing).
+The Dockerfile uses a four-stage build (`uv` -> `base` -> `test` -> final). The `test` stage runs two layers of checks:
+
+1. **Tool availability** -- verifies all critical tools are present and executable (`python3`, `uv`, `uvx`, `node`, `npx`, `mcp-proxy --version`).
+2. **End-to-end round-trip** (`mcp-proxy/test/smoke_e2e.py`) -- starts the proxy with a single named stdio server, drives a real MCP handshake (`initialize` -> `notifications/initialized` -> `tools/list`) over StreamableHTTP, and asserts the child's tools come back. On failure it prints the proxy's own output and exits non-zero.
+
+The second check exists because `--version` cannot catch child-side breakage: a spawned server resolves its own dependencies in its own `uvx` environment, so an unbounded specifier there only fails when a request actually reaches the child. The test uses the same server the bootstrap config ships, so it covers the fresh-install path. It requires PyPI reachability at build time (already true via `uv tool install`), and it deliberately leaves the warmed `uvx` environment in the image cache so the bootstrap server's first real request skips the download.
+
+The final stage derives from `test` (not `base`), which forces BuildKit to always execute the smoke-test stage -- it cannot be skipped as an unused layer, and it runs on pull-request builds too (which build without pushing).
 
 ### CI/CD Pipeline
 Defined in `.github/workflows/build.yaml`. Triggers:
@@ -66,12 +73,17 @@ The App token is used instead of `GITHUB_TOKEN` because commits pushed by `GITHU
 - These secrets must also be configured under **Dependabot secrets** (Settings > Secrets and variables > Dependabot), not just Actions secrets
 
 ### Dependabot
-Configured in `.github/dependabot.yml`. Scope: **GitHub Actions only** (`package-ecosystem: "github-actions"`). Monitors action version references (e.g., `actions/checkout`, `dorny/paths-filter`, and the `home-assistant/builder` composable actions) weekly. All GitHub Actions updates are grouped into a single PR by the `github-actions` group.
+Configured in `.github/dependabot.yml`. Two ecosystems, both weekly and both grouped into a single PR per ecosystem:
+
+- **`github-actions`** (directory `/`) -- action version references (e.g., `actions/checkout`, `dorny/paths-filter`, and the `home-assistant/builder` composable actions).
+- **`docker`** (directory `/mcp-proxy`) -- the pinned `ghcr.io/astral-sh/uv` tag. This only works because the image is declared as a named `FROM ... AS uv` stage; Dependabot's docker parser does not read inline `COPY --from=<image>` references.
+
+The `dependabot-version-bump` workflow is ecosystem-agnostic (it gates on `github.actor == 'dependabot[bot]'`), so docker-ecosystem PRs get the same automatic `config.yaml` patch bump and changelog entry as Actions PRs.
 
 Not monitored by Dependabot:
-- `ghcr.io/astral-sh/uv:latest` Docker image reference in the Dockerfile
+- The HA base images -- they are referenced through the `BUILD_FROM` ARG, which Dependabot does not resolve, and they track the rolling `trixie` channel by design
 - Debian package versions in `apt-get install`
-- `mcp-proxy` PyPI package version
+- `mcp-proxy` and its pinned `mcp` SDK (PyPI is not a configured ecosystem -- there is no Python manifest in the repo, only a `RUN uv tool install` line). These pins must be reviewed by hand; see TECH-STACK.md Known Risks
 
 ### Auto Release
 Defined in `.github/workflows/release.yaml`. Triggers via **`workflow_run`**: it runs only after the `Build Add-on` workflow concludes, and its job runs only when that run was a **successful `push`** to `main` (never for pull requests or failed/cancelled builds). This guarantees the GitHub release is never created before the add-on images are built and published.
@@ -116,7 +128,7 @@ The `image` field in `mcp-proxy/config.yaml` tells HA to pull pre-built images f
 - Release gated behind the build (`workflow_run`): a GitHub release is only cut once the images for that commit exist
 
 ## Known Risks
-- `ghcr.io/astral-sh/uv:latest` is not pinned and not monitored by Dependabot; a breaking `uv` release could silently break image builds
+- The end-to-end smoke test makes builds depend on PyPI reachability *and* on `geosphere-mcp-server` continuing to publish and start cleanly; a PyPI outage or a broken release of that package fails the build. The tradeoff is deliberate -- the alternative is shipping an image whose proxy cannot actually spawn a server
 - GitHub App token secrets must be configured in **both** Actions and Dependabot secret settings; forgetting Dependabot secrets causes silent failures on Dependabot PRs
 - The GitHub App must remain installed on the repository; uninstalling it breaks the Dependabot version bump workflow
 
