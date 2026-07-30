@@ -48,7 +48,7 @@ For Dependabot PRs, steps 1-2 are handled automatically by the `dependabot-versi
 - `pass_environment` leaks `SUPERVISOR_TOKEN` to MCP servers -- default is off for a reason
 - The `home-assistant/builder` composable actions (`prepare-multi-arch-matrix`, `build-image`, `publish-multi-arch-manifest`) are pinned to a SHA; Dependabot monitors for updates. The monolithic `home-assistant/builder` action was deprecated in 2026.03.0 and its legacy builder image removed in 2026.06.0 -- do not revert to it
 - Dependabot covers two ecosystems: `github-actions` and `docker`. The `uv` image MUST stay declared as a named `FROM ... AS uv` stage -- Dependabot's docker parser reads `FROM` lines, not inline `COPY --from=<image>` refs, so collapsing it back into the `COPY` silently drops update coverage
-- GitHub App secrets (`GH_ACTION_APP_ID`, `GH_ACTION_APP_PRIVATE_KEY`) must be in **both** Actions and Dependabot secret settings; missing Dependabot secrets cause silent failures on Dependabot PRs
+- GitHub App secrets (`GH_ACTION_APP_CLIENT_ID`, `GH_ACTION_APP_PRIVATE_KEY`) must be in **both** Actions and Dependabot secret settings; missing Dependabot secrets cause silent failures on Dependabot PRs
 - Never place `servers.json` inside `rootfs/`; user config lives at `/config/servers.json` via `addon_config:rw` mount
 
 ## Branch Protection
