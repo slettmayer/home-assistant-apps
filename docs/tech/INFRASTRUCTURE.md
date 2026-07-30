@@ -69,7 +69,8 @@ The App token is used instead of `GITHUB_TOKEN` because commits pushed by `GITHU
 
 **Required setup:**
 - A GitHub App with repository access, installed on the repository
-- Repository secrets: `GH_ACTION_APP_ID` (numeric App ID), `GH_ACTION_APP_PRIVATE_KEY` (PEM key)
+- Repository secrets: `GH_ACTION_APP_CLIENT_ID` (the App's client ID, `Iv23li…` — **not** the numeric App
+  ID, which `create-github-app-token` deprecated), `GH_ACTION_APP_PRIVATE_KEY` (PEM key)
 - These secrets must also be configured under **Dependabot secrets** (Settings > Secrets and variables > Dependabot), not just Actions secrets
 
 ### Dependabot
@@ -116,7 +117,7 @@ The `image` field in `mcp-proxy/config.yaml` tells HA to pull pre-built images f
 - `actions/create-github-app-token@v3` (Dependabot version bump workflow)
 - GHCR (`ghcr.io`)
 - `GITHUB_TOKEN` (automatic; the `build` and `manifest` jobs need `packages: write` and `id-token: write`)
-- GitHub App secrets: `GH_ACTION_APP_ID`, `GH_ACTION_APP_PRIVATE_KEY` (configured in both Actions and Dependabot secret settings)
+- GitHub App secrets: `GH_ACTION_APP_CLIENT_ID`, `GH_ACTION_APP_PRIVATE_KEY` (configured in both Actions and Dependabot secret settings)
 - Cosign (keyless signing via OIDC, handled inside `build-image` and `publish-multi-arch-manifest`)
 
 ## Design Decisions
