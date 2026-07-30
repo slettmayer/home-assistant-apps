@@ -1,12 +1,17 @@
+# BUILD_FROM is supplied by CI (per-arch, from build.yaml). The default only
+# applies to a manual `docker build` without --build-arg, and silences the
+# BuildKit InvalidDefaultArgInFrom warning.
+#
+# This ARG MUST stay above the first FROM. An ARG declared after a FROM is
+# scoped to that stage, so moving it below would make `${BUILD_FROM}` resolve
+# to a blank base image name and fail the build.
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:trixie
+
 # uv + uvx source image. Declared as a named FROM stage (not an inline
 # `COPY --from=ghcr.io/...`) so Dependabot's docker ecosystem actually parses
 # and bumps the tag — its parser reads FROM lines, not COPY --from refs.
 FROM ghcr.io/astral-sh/uv:0.12.0 AS uv
 
-# BUILD_FROM is supplied by CI (per-arch, from build.yaml). The default only
-# applies to a manual `docker build` without --build-arg, and silences the
-# BuildKit InvalidDefaultArgInFrom warning.
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:trixie
 FROM ${BUILD_FROM} AS base
 
 # System deps: Python 3, Node.js + npm (for npx), build tools (for native MCP deps)
