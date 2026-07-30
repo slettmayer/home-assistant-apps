@@ -24,10 +24,10 @@ Documents the languages, frameworks, build tools, and runtime dependencies used 
 ### Frameworks
 - **Home Assistant Add-on framework** -- dictates file structure (`config.yaml`, `build.yaml`, `rootfs/`), options schema, port mapping, watchdog, and filesystem mounts
 - **s6-overlay** -- init system in HA base images; manages `cont-init.d/` one-shot scripts and `services.d/` supervised long-running services
-- **mcp-proxy** (`github.com/sparfenyuk/mcp-proxy`) -- the core bridging daemon; installed via `uv tool install mcp-proxy`
+- **mcp-proxy** (`github.com/sparfenyuk/mcp-proxy`) -- the core bridging daemon; installed via `uv tool install 'mcp-proxy==0.12.0' --with 'mcp>=1.17,<2'`. Both the tool and its transitive `mcp` SDK are pinned: `mcp-proxy` declares `mcp>=1.17.0` with no upper bound, and `mcp` 2.0.0 (2026-07-28) breaks 0.12.0 outright (`ImportError: cannot import name 'request_ctx' from 'mcp.server.lowlevel.server'`). Lift the `<2` bound only once upstream ships an mcp 2.x-compatible release
 
 ### Build Tools
-- **uv / uvx** (Astral) -- Python tool manager; binaries sourced via `COPY --from=ghcr.io/astral-sh/uv:latest` (unpinned). `uv tool install` installs `mcp-proxy` at build time into `/usr/local/uv-tools`; `uvx` is available at runtime for users to launch Python MCP servers. `UV_PYTHON_PREFERENCE=only-system` forces `uv` to use system Python 3 (never downloads its own interpreter)
+- **uv / uvx** (Astral) -- Python tool manager; binaries sourced via `COPY --from=uv`, where `uv` is a named build stage pinned to `ghcr.io/astral-sh/uv:0.12.0`. The named-stage form (rather than an inline `COPY --from=ghcr.io/...`) is what makes the tag visible to Dependabot's docker parser, which reads `FROM` lines only. `uv tool install` installs `mcp-proxy` at build time into `/usr/local/uv-tools`; `uvx` is available at runtime for users to launch Python MCP servers. `UV_PYTHON_PREFERENCE=only-system` forces `uv` to use system Python 3 (never downloads its own interpreter)
 - **npm / npx** -- installed in the container for users to launch Node.js MCP servers
 - **home-assistant/builder** -- HA's official builder, used via its composable actions (`prepare-multi-arch-matrix`, `build-image`, `publish-multi-arch-manifest`) wrapping `docker buildx` for native per-arch multi-arch builds; pinned to SHA in workflow, managed by Dependabot (the monolithic `home-assistant/builder` action it replaced was deprecated in 2026.03.0)
 
@@ -48,8 +48,8 @@ Documents the languages, frameworks, build tools, and runtime dependencies used 
 
 ## Dependencies
 - `ghcr.io/home-assistant/{arch}-base-debian:trixie` (base image)
-- `ghcr.io/astral-sh/uv:latest` (build-time binary copy for `uv`/`uvx`)
-- `mcp-proxy` from PyPI (installed via `uv tool install`)
+- `ghcr.io/astral-sh/uv:0.12.0` (build-time binary copy for `uv`/`uvx`; pinned, Dependabot-monitored)
+- `mcp-proxy==0.12.0` from PyPI with `mcp>=1.17,<2` (installed via `uv tool install`)
 - Debian packages: `python3`, `python3-pip`, `python3-venv`, `python3-dev`, `nodejs`, `npm`, `build-essential`, `ca-certificates`, `curl`, `git` (`curl`/`git` enable MCP servers to make HTTPS calls and pull from git sources)
 
 ## Design Decisions
@@ -59,7 +59,9 @@ Documents the languages, frameworks, build tools, and runtime dependencies used 
 
 ## Known Risks
 - Image size is large due to Debian base + build tools + Node.js + Python; this is an intentional tradeoff for compatibility
-- `ghcr.io/astral-sh/uv:latest` is unpinned and not monitored by Dependabot -- a breaking `uv` release could silently break image builds
+- The `mcp>=1.17,<2` bound keeps the image on the `mcp` 1.x line, which receives security fixes only. It cannot be lifted until `mcp-proxy` supports the 2.x SDK; if upstream goes dormant, that bound becomes a maintenance liability
+- User-configured MCP servers are still resolved at runtime with whatever specifiers they declare. Pinning the add-on's own dependencies does not protect a server the user adds -- `DOCS.md` documents the failure mode and the `uvx --with` workaround
+- The HA base image is pinned to the rolling `trixie` channel, not a digest, and Dependabot does not resolve the `BUILD_FROM` ARG -- base image changes arrive unannounced
 
 ## Extension Guidelines
 - To add a new system dependency, add it to the `apt-get install` line in `mcp-proxy/Dockerfile`

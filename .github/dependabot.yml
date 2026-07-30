@@ -8,3 +8,17 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # Keeps the pinned `ghcr.io/astral-sh/uv` tag from drifting. Dependabot's
+  # docker parser reads `FROM` lines only, which is why the uv image is declared
+  # as a named `FROM ... AS uv` stage rather than an inline `COPY --from=<image>`.
+  # It does not resolve the BUILD_FROM ARG base, so the HA base images are not
+  # covered here — those are pinned to the `trixie` channel by design.
+  - package-ecosystem: "docker"
+    directory: "/mcp-proxy"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker:
+        patterns:
+          - "*"

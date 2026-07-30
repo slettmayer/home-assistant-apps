@@ -4,7 +4,7 @@
 ## Quick Reference
 - **Build**: CI via `home-assistant/builder` on push/PR to `main` (no local build script)
 - **Run**: Deploy to HA instance with repo URL; no local dev server
-- **Test**: Docker smoke tests validate critical tools on every build; no unit/integration tests; validation by deploying to HA
+- **Test**: Docker smoke tests on every build -- tool availability plus an end-to-end `tools/list` round-trip through the proxy (`mcp-proxy/test/smoke_e2e.py`); no unit tests; further validation by deploying to HA
 - **Lint**: No linter configured (shellcheck/yamllint recommended but not set up)
 
 ## Architecture Overview
@@ -17,7 +17,7 @@ See [ARCHITECTURE.md](docs/tech/ARCHITECTURE.md) for data flow and module bounda
 ## Tech Stack
 - Shell (Bash) with `bashio` helpers, YAML configs, Dockerfile
 - Base: Debian trixie HA images (`ghcr.io/home-assistant/{arch}-base-debian:trixie`)
-- `mcp-proxy` installed via `uv tool install` at `/usr/local/uv-tools/bin/mcp-proxy`
+- `mcp-proxy` installed via `uv tool install` at `/usr/local/uv-tools/bin/mcp-proxy`, pinned to `0.12.0` with `mcp>=1.17,<2` (mcp 2.0.0 breaks it)
 - Node.js + npm (for npx), Python 3 (for uvx), build-essential (for native deps)
 - CI: GitHub Actions with `home-assistant/builder`, images pushed to GHCR
 
@@ -46,7 +46,8 @@ For Dependabot PRs, steps 1-2 are handled automatically by the `dependabot-versi
 ## Critical Warnings
 - `config.yaml` MUST have an `image` field or HA builds locally instead of pulling from GHCR
 - `pass_environment` leaks `SUPERVISOR_TOKEN` to MCP servers -- default is off for a reason
-- The `home-assistant/builder` composable actions (`prepare-multi-arch-matrix`, `build-image`, `publish-multi-arch-manifest`) are pinned to a SHA; Dependabot monitors for updates (GitHub Actions ecosystem only). The monolithic `home-assistant/builder` action was deprecated in 2026.03.0 and its legacy builder image removed in 2026.06.0 -- do not revert to it
+- The `home-assistant/builder` composable actions (`prepare-multi-arch-matrix`, `build-image`, `publish-multi-arch-manifest`) are pinned to a SHA; Dependabot monitors for updates. The monolithic `home-assistant/builder` action was deprecated in 2026.03.0 and its legacy builder image removed in 2026.06.0 -- do not revert to it
+- Dependabot covers two ecosystems: `github-actions` and `docker`. The `uv` image MUST stay declared as a named `FROM ... AS uv` stage -- Dependabot's docker parser reads `FROM` lines, not inline `COPY --from=<image>` refs, so collapsing it back into the `COPY` silently drops update coverage
 - GitHub App secrets (`GH_ACTION_APP_ID`, `GH_ACTION_APP_PRIVATE_KEY`) must be in **both** Actions and Dependabot secret settings; missing Dependabot secrets cause silent failures on Dependabot PRs
 - Never place `servers.json` inside `rootfs/`; user config lives at `/config/servers.json` via `addon_config:rw` mount
 
@@ -56,8 +57,9 @@ For Dependabot PRs, steps 1-2 are handled automatically by the `dependabot-versi
 ## Structural Risks
 - No secret-scanning in CI; the root `.gitignore` ignores `servers.json` (defends against committing API keys, esp. under `rootfs/`), but nothing enforces it beyond that
 - No shellcheck or yamllint in CI; script errors only caught at runtime
-- No unit/integration tests; Docker smoke tests cover tool availability only
-- `ghcr.io/astral-sh/uv:latest` is unpinned; Dependabot does not monitor Docker image refs, only GitHub Actions
+- No unit tests; Docker smoke tests cover tool availability plus one end-to-end proxy round-trip
+- **Unbounded dependency specifiers are the main outage class here.** The add-on's own deps are pinned (`uv`, `mcp-proxy`, `mcp`), but user-configured MCP servers resolve at runtime with whatever bounds they declare, and a single failing server takes down the entire proxy (`mcp-proxy` has no per-server error handling). Never use a server with an unbounded `mcp` specifier as a documented example or default
+- Build now depends on PyPI reachability and on `geosphere-mcp-server` publishing a working release (the end-to-end smoke test spawns it)
 - `.idea/`, `qodana.yaml`, and `.claude/settings.local.json` are git-ignored via the root `.gitignore` (local IDE/analysis/agent config, not tracked)
 - `mcp-proxy/CHANGELOG.md` format is load-bearing: must start with `# Changelog\n\n` and use `## X.Y.Z` headers (dependabot-version-bump workflow depends on this)
 - Doc-only PRs rely on the `gate` job (which passes when `build` is skipped); branch protection must require `gate` not `build`

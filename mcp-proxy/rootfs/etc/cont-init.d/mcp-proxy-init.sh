@@ -6,13 +6,18 @@
 CONFIG_FILE="/config/servers.json"
 
 if ! bashio::fs.file_exists "${CONFIG_FILE}"; then
-    bashio::log.info "No servers.json found — creating default config with calculator example"
+    bashio::log.info "No servers.json found — creating default config with weather example"
+    # geosphere-mcp-server pins its MCP SDK (`mcp[cli]>=2,<3`) and needs no API
+    # key, so a fresh install starts cleanly. Do not use a server that declares
+    # an unbounded `mcp` specifier here: the previous default
+    # (mcp-server-calculator, `mcp>=1.4.1`) resolved the breaking mcp 2.0.0 and
+    # crash-looped every fresh install. Keep this example bounded.
     cat > "${CONFIG_FILE}" << 'EOF'
 {
   "mcpServers": {
-    "calculator": {
+    "geosphere": {
       "command": "uvx",
-      "args": ["mcp-server-calculator"]
+      "args": ["geosphere-mcp-server"]
     }
   }
 }
