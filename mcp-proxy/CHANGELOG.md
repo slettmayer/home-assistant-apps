@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- Bump astral-sh/uv (Dependabot)
+
 ## 0.3.0
 
 - Pin `mcp-proxy` to 0.12.0 and constrain its `mcp` SDK to `>=1.17,<2`. `mcp` 2.0.0 is a breaking release that `mcp-proxy` 0.12.0 does not support (`ImportError: cannot import name 'request_ctx'`); because `mcp-proxy` declares `mcp>=1.17.0` with no upper bound, the next image rebuild would have installed it
