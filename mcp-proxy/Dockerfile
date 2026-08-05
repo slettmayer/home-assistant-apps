@@ -10,7 +10,7 @@ ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:trixie
 # uv + uvx source image. Declared as a named FROM stage (not an inline
 # `COPY --from=ghcr.io/...`) so Dependabot's docker ecosystem actually parses
 # and bumps the tag — its parser reads FROM lines, not COPY --from refs.
-FROM ghcr.io/astral-sh/uv:0.12.0 AS uv
+FROM ghcr.io/astral-sh/uv:0.12.1 AS uv
 
 FROM ${BUILD_FROM} AS base
 
