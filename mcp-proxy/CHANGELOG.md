@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4
+
+- Bump astral-sh/uv (Dependabot)
+
 ## 0.3.3
 
 - Bump astral-sh/uv (Dependabot)
