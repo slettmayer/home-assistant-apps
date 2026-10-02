@@ -76,12 +76,16 @@ The App token is used instead of `GITHUB_TOKEN` because commits pushed by `GITHU
 - These secrets must also be configured under **Dependabot secrets** (Settings > Secrets and variables > Dependabot), not just Actions secrets
 
 ### Dependabot
-Configured in `.github/dependabot.yml`. Two ecosystems, both weekly and both grouped into a single PR per ecosystem:
+Configured in `.github/dependabot.yml`. Two ecosystems, both weekly (`docker` on Mondays, `github-actions` on Thursdays) and both grouped into a single PR per ecosystem:
 
 - **`github-actions`** (directory `/`) -- action version references (e.g., `actions/checkout`, `dorny/paths-filter`, and the `home-assistant/builder` composable actions).
 - **`docker`** (directory `/mcp-proxy`) -- the pinned `ghcr.io/astral-sh/uv` tag. This only works because the image is declared as a named `FROM ... AS uv` stage; Dependabot's docker parser does not read inline `COPY --from=<image>` references.
 
 Only **docker** PRs get the automatic `config.yaml` patch bump and changelog entry, and so a release: the `uv` binaries are copied into the image and used at runtime. **github-actions** PRs change CI only; they merge without a version bump, and the `publish` guard keeps the build from re-publishing the current version. Their updates ship with the next release.
+
+**Auto-merge** (`.github/workflows/dependabot-auto-merge.yaml`): every Dependabot PR gets squash auto-merge enabled and lands once `gate` passes; one that fails `gate` stays open for a human. It uses the GitHub App token rather than `GITHUB_TOKEN`, because a `GITHUB_TOKEN` merge triggers no workflows -- the push build would never publish, and `release.yaml` would never run. For a docker PR, the version-bump commit lands within seconds and restarts `gate`, so the merge carries the bump. Should the bump ever fail to land, the PR merges without one and the `publish` guard keeps the released image untouched -- a missed release, never an overwritten one.
+
+The ruleset requires an up-to-date branch, and auto-merge never updates one. That is why the two ecosystems run on different days; a PR left behind by a feature merge needs `gh pr update-branch <n>`.
 
 Not monitored by Dependabot:
 - The HA base images -- they are referenced through the `BUILD_FROM` ARG, which Dependabot does not resolve, and they track the rolling `trixie` channel by design

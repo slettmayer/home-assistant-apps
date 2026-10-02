@@ -45,6 +45,8 @@ For Dependabot **docker** PRs (the `uv` image, which ships in the add-on), steps
 
 A push to `main` publishes images only when its version has no `v<version>` tag yet (`build.yaml`'s `publish` guard). So an image change merged **without** a version bump is built and tested but never published -- bump the version for anything that should reach users.
 
+Dependabot PRs **merge themselves** once `gate` passes (`dependabot-auto-merge.yaml`, using the GitHub App token so the push build still runs). One that fails `gate` stays open; one left behind `main` by a feature merge needs `gh pr update-branch <n>`.
+
 ## Critical Warnings
 - `config.yaml` MUST have an `image` field or HA builds locally instead of pulling from GHCR
 - `pass_environment` leaks `SUPERVISOR_TOKEN` to MCP servers -- default is off for a reason

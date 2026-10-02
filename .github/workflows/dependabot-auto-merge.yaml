@@ -1,0 +1,33 @@
+name: Dependabot Auto-merge
+
+# Dependabot's PRs merge themselves once `gate` passes; one that fails it stays
+# open for a human. Docker PRs carry the version bump from
+# dependabot-version-bump.yaml, so their merge releases the add-on;
+# github-actions PRs carry none and release nothing.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.GH_ACTION_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GH_ACTION_APP_PRIVATE_KEY }}
+
+      # The App token, not GITHUB_TOKEN: a merge made with GITHUB_TOKEN
+      # triggers no workflows, so the push build -- and with it the image
+      # publish and release.yaml -- would never run.
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash "${PR_URL}"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
