@@ -1,0 +1,50 @@
+name: Dependabot Auto-merge
+
+# Dependabot's PRs merge themselves once `gate` passes; one that fails it stays
+# open for a human. Docker PRs carry the version bump from
+# dependabot-version-bump.yaml, so their merge releases the add-on;
+# github-actions PRs carry none and release nothing.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.GH_ACTION_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GH_ACTION_APP_PRIVATE_KEY }}
+          # Just what enabling auto-merge needs, not the App's full grant.
+          permission-contents: write
+          permission-pull-requests: write
+
+      # The App token, not GITHUB_TOKEN: a merge made with GITHUB_TOKEN
+      # triggers no workflows, so the push build -- and with it the image
+      # publish and release.yaml -- would never run.
+      # A docker PR must carry its version bump before it may merge, or a
+      # runtime change would land without a release. The bump workflow runs in
+      # parallel and pushes a commit; that push re-triggers this job
+      # (synchronize), which then finds the bump. If the bump never lands, the
+      # PR stays open for a human.
+      - name: Enable auto-merge
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          if [[ "${HEAD_REF}" == dependabot/docker/* ]]; then
+            files=$(gh pr view "${PR_URL}" --json files --jq '.files[].path')
+            if ! grep -qx 'mcp-proxy/config.yaml' <<< "${files}"; then
+              echo "::notice::Waiting for the version bump; auto-merge not enabled yet."
+              exit 0
+            fi
+          fi
+          gh pr merge --auto --squash "${PR_URL}"

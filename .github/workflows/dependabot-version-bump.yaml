@@ -6,7 +6,13 @@ on:
 
 jobs:
   version-bump:
-    if: github.actor == 'dependabot[bot]'
+    # Only the docker ecosystem changes the shipped image (the `uv` stage is
+    # copied into it). github-actions bumps change CI, not the add-on, so they
+    # merge without a version bump -- and therefore without a release or a
+    # re-published image (see the `publish` guard in build.yaml).
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      startsWith(github.head_ref, 'dependabot/docker/')
     runs-on: ubuntu-latest
     steps:
       - name: Generate GitHub App token

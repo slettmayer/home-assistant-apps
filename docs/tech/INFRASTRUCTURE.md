@@ -44,17 +44,19 @@ Job pipeline: `changes` → `prepare` → `build` (matrix) → `manifest` → `g
 2. **`prepare`** -- runs only when `code == 'true'`. Reads the add-on version from `mcp-proxy/config.yaml` and calls `home-assistant/builder/actions/prepare-multi-arch-matrix` to produce the build matrix -- one entry per architecture, each carrying its native runner OS and per-arch image name (`ghcr.io/<owner>/<arch>-mcp-proxy`).
 3. **`build`** -- matrix over the architectures from `prepare`. Each job runs on its **native runner** (`ubuntu-24.04` for amd64, `ubuntu-24.04-arm` for aarch64 -- no QEMU emulation) and calls `home-assistant/builder/actions/build-image`:
    - `context: mcp-proxy`; the `BUILD_FROM` build-arg and OCI `labels` are read from `mcp-proxy/build.yaml`.
-   - On **push to `main`**: `push` and `cosign` are enabled -- each per-arch image is pushed to `ghcr.io/<owner>/<arch>-mcp-proxy:<version>` (and `:latest`) and keyless-signed via OIDC.
-   - On **pull requests**: `push` and `cosign` are disabled -- the image is built but not pushed. The Dockerfile's `test` stage still runs, so the smoke tests validate every PR.
-4. **`manifest`** -- runs only on push to `main`. Calls `home-assistant/builder/actions/publish-multi-arch-manifest` to combine the per-arch images into a single multi-arch manifest at `ghcr.io/<owner>/mcp-proxy:<version>` (and `:latest`) -- the ref HA pulls -- and signs it.
+   - When **publishing** (a push to `main` whose `ghcr.io/<owner>/mcp-proxy:<version>` image does not exist yet -- the `publish` output of `prepare`): `push` and `cosign` are enabled -- each per-arch image is pushed to `ghcr.io/<owner>/<arch>-mcp-proxy:<version>` (and `:latest`) and keyless-signed via OIDC.
+   - Otherwise (**pull requests**, or a push whose version is already released): `push` and `cosign` are disabled -- the image is built but not pushed. The Dockerfile's `test` stage still runs, so the smoke tests validate every PR.
+4. **`manifest`** -- runs only when publishing. Calls `home-assistant/builder/actions/publish-multi-arch-manifest` to combine the per-arch images into a single multi-arch manifest at `ghcr.io/<owner>/mcp-proxy:<version>` (and `:latest`) -- the ref HA pulls -- and signs it.
 5. **`gate`** -- runs after `build` and `manifest` with `if: always()`. Passes if both succeeded or were skipped; fails if either failed or was cancelled.
+
+**Why a released version is never re-published:** the base image tracks the rolling `trixie` channel, so every rebuild produces a different image. Re-pushing under an existing version would overwrite `<version>` and `:latest` in place -- installed add-ons keep the old image, new installs get the new one, both reporting the same version. The guard asks the registry rather than checking the `v<version>` git tag, because `release.yaml` tags only after a successful build -- a failed release would leave a published image with no tag. It fails closed: any registry answer other than a definite 404 fails the job instead of publishing.
 
 Branch protection requires the `gate` check (not `build`/`manifest`), so docs-only PRs merge cleanly while code PRs still get the full build validation.
 
 > The per-arch `ghcr.io/<owner>/<arch>-mcp-proxy` repositories are build intermediates. `publish-multi-arch-manifest` copies their blobs into the `mcp-proxy` package, so the published multi-arch image is self-contained and pullable regardless of the per-arch repositories' visibility.
 
 ### Dependabot Version Bump
-Defined in `.github/workflows/dependabot-version-bump.yaml`. Triggers on `pull_request` events (`opened`, `synchronize`) but only runs for `dependabot[bot]`.
+Defined in `.github/workflows/dependabot-version-bump.yaml`. Triggers on `pull_request` events (`opened`, `synchronize`) but only runs for `dependabot[bot]` PRs from the **docker** ecosystem (`dependabot/docker/*` branches) -- the only ones that change the shipped image.
 
 When a Dependabot PR is opened or updated:
 1. Generates a **GitHub App token** via `actions/create-github-app-token@v3`
@@ -74,12 +76,16 @@ The App token is used instead of `GITHUB_TOKEN` because commits pushed by `GITHU
 - These secrets must also be configured under **Dependabot secrets** (Settings > Secrets and variables > Dependabot), not just Actions secrets
 
 ### Dependabot
-Configured in `.github/dependabot.yml`. Two ecosystems, both weekly and both grouped into a single PR per ecosystem:
+Configured in `.github/dependabot.yml`. Two ecosystems, both weekly (`docker` on Mondays, `github-actions` on Thursdays) and both grouped into a single PR per ecosystem:
 
 - **`github-actions`** (directory `/`) -- action version references (e.g., `actions/checkout`, `dorny/paths-filter`, and the `home-assistant/builder` composable actions).
 - **`docker`** (directory `/mcp-proxy`) -- the pinned `ghcr.io/astral-sh/uv` tag. This only works because the image is declared as a named `FROM ... AS uv` stage; Dependabot's docker parser does not read inline `COPY --from=<image>` references.
 
-The `dependabot-version-bump` workflow is ecosystem-agnostic (it gates on `github.actor == 'dependabot[bot]'`), so docker-ecosystem PRs get the same automatic `config.yaml` patch bump and changelog entry as Actions PRs.
+Only **docker** PRs get the automatic `config.yaml` patch bump and changelog entry, and so a release: the `uv` binaries are copied into the image and used at runtime. **github-actions** PRs change CI only; they merge without a version bump, and the `publish` guard keeps the build from re-publishing the current version. Their updates ship with the next release.
+
+**Auto-merge** (`.github/workflows/dependabot-auto-merge.yaml`): every Dependabot PR gets squash auto-merge enabled and lands once `gate` passes; one that fails `gate` stays open for a human. It uses the GitHub App token rather than `GITHUB_TOKEN`, because a `GITHUB_TOKEN` merge triggers no workflows -- the push build would never publish, and `release.yaml` would never run. For a **docker** PR it enables auto-merge only once the PR carries the version bump (`mcp-proxy/config.yaml` among its changed files): the bump workflow's push re-triggers the job, which then finds it. If the bump never lands, the PR stays open for a human -- a runtime change never merges without its release.
+
+The ruleset requires an up-to-date branch, and auto-merge never updates one. That is why the two ecosystems run on different days; a PR left behind by a feature merge needs `gh pr update-branch <n>`.
 
 Not monitored by Dependabot:
 - The HA base images -- they are referenced through the `BUILD_FROM` ARG, which Dependabot does not resolve, and they track the rolling `trixie` channel by design
@@ -96,7 +102,7 @@ When the version in `config.yaml` does not have a matching GitHub release:
 4. Extracts the changelog section for the version from `mcp-proxy/CHANGELOG.md`
 5. Creates a GitHub release (tagged at the built commit via `--target`) with the changelog as release notes
 
-This covers both manual version bumps and Dependabot auto-bumps. No secrets beyond `GITHUB_TOKEN` are required (`contents: write` permission).
+This covers both manual version bumps and Dependabot docker auto-bumps. No secrets beyond `GITHUB_TOKEN` are required (`contents: write` permission).
 
 ### Image Registry
 Images are published to `ghcr.io/slettmayer/mcp-proxy:<version>` as a multi-arch manifest (`linux/amd64` + `linux/arm64`). Per-arch build intermediates live at `ghcr.io/slettmayer/<arch>-mcp-proxy`.
