@@ -43,9 +43,9 @@ Every release requires these steps:
 
 For Dependabot **docker** PRs (the `uv` image, which ships in the add-on), steps 1-2 are handled automatically by the `dependabot-version-bump` workflow. Dependabot **github-actions** PRs get no version bump and no release -- they change CI, not the add-on.
 
-A push to `main` publishes images only when its version has no `v<version>` tag yet (`build.yaml`'s `publish` guard). So an image change merged **without** a version bump is built and tested but never published -- bump the version for anything that should reach users.
+A push to `main` publishes images only when `ghcr.io/slettmayer/mcp-proxy:<version>` does not exist yet (`build.yaml`'s `publish` guard, which fails closed). So an image change merged **without** a version bump is built and tested but never published -- bump the version for anything that should reach users.
 
-Dependabot PRs **merge themselves** once `gate` passes (`dependabot-auto-merge.yaml`, using the GitHub App token so the push build still runs). One that fails `gate` stays open; one left behind `main` by a feature merge needs `gh pr update-branch <n>`.
+Dependabot PRs **merge themselves** once `gate` passes (`dependabot-auto-merge.yaml`, using the GitHub App token so the push build still runs). Docker PRs wait for their version bump before auto-merge is enabled. One that fails `gate` stays open; one left behind `main` by a feature merge needs `gh pr update-branch <n>`.
 
 ## Critical Warnings
 - `config.yaml` MUST have an `image` field or HA builds locally instead of pulling from GHCR

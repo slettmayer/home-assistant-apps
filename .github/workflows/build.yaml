@@ -53,23 +53,34 @@ jobs:
         run: echo "version=$(yq '.version' mcp-proxy/config.yaml)" >> "$GITHUB_OUTPUT"
       - name: Decide whether to publish
         id: publish
-        # Publish only on a push to main whose version has not been released.
-        # A push that leaves the version alone (a github-actions bump, a
-        # forgotten bump) would otherwise rebuild on the current trixie base
-        # and overwrite `<version>` and `latest` in place: existing installs
-        # keep the old image, new installs get a different one, same version.
-        # release.yaml creates the `v<version>` tag, so it marks "released".
+        # Publish only on a push to main whose version has no image yet. A push
+        # that leaves the version alone (a github-actions bump, a forgotten
+        # bump) would otherwise rebuild on the current trixie base and
+        # overwrite `<version>` and `latest` in place: existing installs keep
+        # the old image, new installs get a different one, same version.
+        #
+        # The registry is asked, not the git tag: release.yaml tags only after
+        # a successful build, so a failed release would leave a published image
+        # without a tag. Fails closed -- anything but a definite 404 fails the
+        # job rather than risking an overwrite.
         env:
           EVENT: ${{ github.event_name }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           publish=false
           if [ "${EVENT}" = push ]; then
-            if [ -n "$(git ls-remote --tags origin "refs/tags/v${VERSION}")" ]; then
-              echo "::notice::v${VERSION} is already released; building without publishing."
-            else
-              publish=true
-            fi
+            repo=$(yq '.image' mcp-proxy/config.yaml)
+            repo=${repo#ghcr.io/}
+            token=$(curl -fsS "https://ghcr.io/token?scope=repository:${repo}:pull" | jq -r .token)
+            status=$(curl -sS -o /dev/null -w '%{http_code}' -I \
+              -H "Authorization: Bearer ${token}" \
+              -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json' \
+              "https://ghcr.io/v2/${repo}/manifests/${VERSION}")
+            case "${status}" in
+              404) publish=true ;;
+              200) echo "::notice::${repo}:${VERSION} is already published; building without publishing." ;;
+              *) echo "::error::Registry lookup for ${repo}:${VERSION} returned HTTP ${status}"; exit 1 ;;
+            esac
           fi
           echo "publish=${publish}" >> "$GITHUB_OUTPUT"
       - name: Prepare multi-arch build matrix
