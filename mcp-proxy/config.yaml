@@ -1,5 +1,5 @@
 name: MCP Proxy
-version: "0.3.9"
+version: "0.3.10"
 slug: mcp_proxy
 image: ghcr.io/slettmayer/mcp-proxy
 description: >-
