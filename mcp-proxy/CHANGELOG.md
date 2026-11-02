@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.12
+
+- Bump dependency (Dependabot)
+
 ## 0.3.11
 
 - Bump dependency (Dependabot)
